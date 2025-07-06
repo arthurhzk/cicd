@@ -1,4 +1,4 @@
-name: Matrix CI
+name: Integration CI
 
 on:
   push:
@@ -8,22 +8,17 @@ on:
 
 jobs:
   test:
-    name: Test Node.js ${{ matrix.node-version }}
+    name: Unit Tests
     runs-on: ubuntu-latest
     
-    # Matrix strategy - testa em múltiplas versões
-    strategy:
-      matrix:
-        node-version: [16.x, 18.x, 20.x]
-        
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup Node.js ${{ matrix.node-version }}
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: '18.x'
         cache: 'npm'
         
     - name: Install dependencies
@@ -31,6 +26,50 @@ jobs:
       
     - name: Run tests
       run: npm test
+
+  # Novo job que só roda se os testes passarem
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: test  # Só executa se 'test' passar
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
       
-    - name: Show Node version
-      run: node --version
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm install
+      
+    - name: Start API in background
+      run: |
+        npm start &
+        echo $! > app.pid
+        
+    - name: Wait for API to start
+      run: |
+        timeout 30 bash -c 'until curl -f http://localhost:3000/health; do sleep 1; done'
+        
+    - name: Test API endpoints
+      run: |
+        echo "Testing health endpoint..."
+        curl -f http://localhost:3000/health
+        
+        echo "Testing root endpoint..."
+        curl -f http://localhost:3000/
+        
+        echo "Testing math endpoint..."
+        curl -f http://localhost:3000/math/add/5/3
+        
+        echo "All endpoints working! ✅"
+        
+    - name: Stop API
+      run: |
+        if [ -f app.pid ]; then
+          kill $(cat app.pid) || true
+        fi
