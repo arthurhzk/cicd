@@ -1,26 +1,29 @@
-name: Basic CI
+name: Matrix CI
 
-# Quando executar
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
-  # Job único e simples
   test:
-    name: Run Tests
+    name: Test Node.js ${{ matrix.node-version }}
     runs-on: ubuntu-latest
     
+    # Matrix strategy - testa em múltiplas versões
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x, 20.x]
+        
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup Node.js
+    - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
-        node-version: '18.x'
+        node-version: ${{ matrix.node-version }}
         cache: 'npm'
         
     - name: Install dependencies
@@ -28,3 +31,6 @@ jobs:
       
     - name: Run tests
       run: npm test
+      
+    - name: Show Node version
+      run: node --version
