@@ -67,11 +67,14 @@ jobs:
 
           echo "All endpoints working! ✅"
 
-      - name: Stop API
+      - name: Stop background API
         run: |
           if [ -f app.pid ]; then
             kill $(cat app.pid) || true
+            rm app.pid
+            sleep 2  # tempo para liberar a porta 4000
           fi
+
 
       - name: Build Docker image
         run: docker build -t my-app:latest .
