@@ -12,5 +12,17 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  app:
+    build: .
+    environment:
+      DB_HOST: db
+      DB_USER: myuser
+      DB_PASS: mypass
+      DB_NAME: mydb
+    ports:
+      - "4000:4000"
+    depends_on:
+      - db
+
 volumes:
   pgdata:
