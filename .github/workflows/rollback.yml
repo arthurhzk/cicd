@@ -1,0 +1,55 @@
+name: Rollback Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to rollback to (commit SHA or tag)'
+        required: true
+        type: string
+
+jobs:
+  rollback:
+    name: Rollback to Previous Version
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Validate version exists
+        run: |
+          # Verifica se a imagem existe no Docker Hub
+          docker manifest inspect ${{ secrets.DOCKER_HUB_USERNAME }}/my-app:${{ github.event.inputs.version }}
+          
+      - name: Deploy previous version
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "🔄 Starting rollback to version ${{ github.event.inputs.version }}"
+            
+            # Backup da versão atual
+            docker tag ${{ secrets.DOCKER_HUB_USERNAME }}/my-app:latest ${{ secrets.DOCKER_HUB_USERNAME }}/my-app:backup-$(date +%s)
+            
+            # Para container atual
+            docker stop my-app || true
+            docker rm my-app || true
+            
+            # Puxa versão anterior
+            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/my-app:${{ github.event.inputs.version }}
+            
+            # Inicia versão anterior
+            docker run -d -p 4000:4000 --name my-app --restart unless-stopped \
+              ${{ secrets.DOCKER_HUB_USERNAME }}/my-app:${{ github.event.inputs.version }}
+            
+            # Verifica saúde
+            sleep 10
+            curl -f http://localhost:4000/health || exit 1
+            
+            echo "✅ Rollback completed successfully!"
+            
+      - name: Notify rollback
+        run: |
+          echo "🚨 ROLLBACK EXECUTED!"
+          echo "Version: ${{ github.event.inputs.version }}"
+          echo "Time: $(date)"
