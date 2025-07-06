@@ -12,18 +12,5 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  app:
-    build: .
-    environment:
-      DB_HOST: db
-      DB_USER: myuser
-      DB_PASS: mypass
-      DB_NAME: mydb
-    ports:
-      - "3000:3000"
-    depends_on:
-      - db
-    command: sh -c "npx sequelize-cli db:migrate && npm start"
-
 volumes:
   pgdata:
