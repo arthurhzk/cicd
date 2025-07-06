@@ -75,7 +75,34 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t my-app:latest .
+      - name: Install Docker Compose
+        run: |
+          sudo curl -L "https://github.com/docker/compose/releases/download/v2.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          docker-compose version
 
+      - name: Start services with Docker Compose
+        run: docker-compose up -d
+
+      - name: Wait for API to start
+        run: |
+          timeout 30 bash -c 'until curl -f http://localhost:3000/health; do sleep 1; done'
+
+      - name: Test API endpoints
+        run: |
+          echo "Testing health endpoint..."
+          curl -f http://localhost:3000/health
+
+          echo "Testing root endpoint..."
+          curl -f http://localhost:3000/
+
+          echo "Testing math endpoint..."
+          curl -f http://localhost:3000/math/add/5/3
+
+          echo "All endpoints working! ✅"
+
+      - name: Stop services
+        run: docker-compose down
       - name: Push Docker image
         env:
           DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
